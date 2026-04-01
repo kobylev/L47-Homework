@@ -116,6 +116,43 @@ In a standard Q-Learning setup, we assume the environment is stationary. By addi
 *   **The Challenge:** A state $(r, c)$ that was "safe" in Episode 100 might contain a dynamic obstacle in Episode 101.
 *   **Agent Response:** The Q-values for states near high-traffic dynamic areas effectively "sink," representing the expected value over many stochastic realizations. This forces the agent to favor "wide" corridors even if they are slightly longer in Manhattan distance.
 
+## 🔬 Comparative Analysis: Classical AI (A*) vs. Reinforcement Learning (Q-Learning)
+
+To evaluate the effectiveness of the learned policy, we benchmarked the Q-Learning agent against a deterministic **A* Search** algorithm. This comparison highlights the fundamental trade-offs between search-based and learning-based navigation.
+
+### 📈 Performance Benchmarks
+
+![Benchmark Comparison](assets/benchmark_comparison.png)
+
+### 📊 Benchmark Matrix
+
+| Feature | A* Search (Classical AI) | Q-Learning (Reinforcement Learning) |
+| :--- | :--- | :--- |
+| **Execution Time** | $0.24\text{ ms}$ (Extremely Fast) | $~3000\text{ ms}$ (Including Training) |
+| **Path Optimality** | Provably Optimal (22 steps) | Converges to Optimal (22-23 steps) |
+| **Knowledge Type** | Procedural (Algorithm-based) | Empirical (Experience-based) |
+| **Dynamic Robustness** | **Low:** Requires re-calculation per step | **High:** Learned "Safe Zones" policy |
+| **Memory Usage** | Temporary (Frontier/Tree) | Persistent (Q-Table) |
+
+### 🖼️ Trajectory Comparison
+
+The visualization below demonstrates the difference in path-finding logic between the two paradigms.
+
+![Path Comparison](assets/path_comparison.png)
+
+### 🛠️ Deep Technical Conclusions
+
+#### 1. The Stochastic Advantage
+While **A*** is significantly faster in static environments, it is essentially "blind" to probabilities. In the presence of dynamic obstacles, a standard A* implementation would need to be re-run at every single frame to avoid collisions, leading to "jittery" paths if the obstacles move stochastically. 
+Conversely, **Q-Learning** develops an **Intuitive Robustness**. By training with dynamic hazards, the Q-values naturally decrease in high-collision areas. The agent doesn't just "calculate" a path; it learns a **Safety Manifold** that prioritizes reliable transitions over the absolute shortest geometric path.
+
+#### 2. Model-Based vs. Model-Free
+*   **A* is Model-Based:** It requires perfect knowledge of the environment's geometry (the "Map") to function.
+*   **Q-Learning is Model-Free:** It learns the environment's dynamics purely through interaction $(s, a, r, s')$. This makes RL far more suitable for complex, real-world scenarios where the "rules" of the physics engine or the exact geometry of obstacles are unknown or too complex to model explicitly.
+
+#### 3. Generalization vs. Specificity
+A* finds the best path for a *specific* start-goal pair. Q-Learning, while focused on one goal in this implementation, effectively calculates the value of *all* state-action pairs in the grid. If the start position were to change mid-evaluation, the Q-Learning agent would already know the optimal move from its new location, whereas A* would require a complete re-start of the search tree.
+
 ---
 
 ## 🛠️ Setup & Usage
