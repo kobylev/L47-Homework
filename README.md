@@ -184,4 +184,3 @@ python code/main.py
 
 ## 🚀 Future Roadmap
 - [ ] Implement **DQN** for continuous state space navigation.
-- [ ] Compare performance against **A* Search** (Classical AI vs RL).
