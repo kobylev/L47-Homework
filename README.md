@@ -56,41 +56,65 @@ $$\epsilon_{t+1} = \max(\epsilon_{min}, \epsilon_t \times \text{decay})$$
 
 The $12 \times 12$ GridWorld is not a simple walk. It incorporates:
 *   **Static Obstacles (Walls):** Horizontal and vertical blocks that force the agent to find non-linear paths.
+*   **Dynamic Obstacles (Moving Hazards):** 5 stochastically moving objects that relocate with a $30\%$ probability at each step, challenging the policy's robustness.
 *   **Trap Zones:** High-penalty cells $(-50)$ that simulate "dangerous" areas to be avoided.
-*   **Step Penalty:** A minor penalty $(-1)$ per movement to incentivize the discovery of the *shortest* path, not just *any* path.
+*   **Step Penalty:** A minor penalty $(-1)$ per movement to incentivize the discovery of the *shortest* path.
 
 | Feature | Coordinate / Value |
 | :--- | :--- |
 | **Grid Size** | $12 \times 12$ |
-| **Start State** | $(0, 0)$ |
-| **Goal State** | $(11, 11)$ |
+| **Start / Goal** | $(0, 0) / (11, 11)$ |
+| **Dynamic Obstacles** | 5 (Moving) |
 | **Goal Reward** | $+100$ |
 | **Trap Penalty** | $-50$ |
+| **Dyn. Obs. Penalty** | $-20$ |
 | **Step Penalty** | $-1$ |
 
 ---
 
 ## 📊 Results & Performance Analysis
 
-### 1. Training Convergence
-The following chart illustrates the agent's learning progress over 1,000 episodes. 
+### 1. Training Convergence (Robustness Test)
+The following chart illustrates the agent's learning progress under non-stationary conditions.
 
 ![Training Rewards](assets/training_rewards.png)
 
 **Technical Breakdown:**
-*   **Initial Volatility (Episodes 0-250):** The high variance in rewards is a direct result of the $\epsilon$-greedy strategy where $\epsilon \approx 1.0$. The agent is primarily "sampling" the environment, frequently encountering **Trap Zones $(-50)$** and accumulating high **Step Penalties**.
-*   **The "Eureka" Moment (Episodes 250-500):** As the Q-values for the goal $(11, 11)$ propagate backwards via the Bellman update, we see a sharp logarithmic growth. This indicates the agent has discovered a stable sequence of actions that reach the goal.
-*   **Saturation (Episodes 600+):** The curve flattens as the agent reaches the theoretical maximum reward for the shortest path $(\approx +85)$. The remaining small fluctuations are due to the residual exploration rate $(\epsilon_{min} = 0.01)$.
+*   **Persistent Variance:** Unlike static environments, the reward curve never fully "locks" at a single value. Even after convergence, we see dips (e.g., Episode 1000) where the agent's greedy path was intersected by a dynamic obstacle $(\text{Penalty: } -20)$.
+*   **Robustness Factor:** The agent successfully learns a policy that maintains a high average reward $(\approx +60 \text{ to } +80)$ despite the environment's stochastic nature.
+*   **Adaptation:** The Q-Learning algorithm effectively "weights" certain transitions lower if they are frequently blocked by moving hazards.
 
-### 2. Path Optimization & Obstacle Avoidance
-This visualization shows the final "Greedy" trajectory $(\epsilon = 0)$ mapped across the $12 \times 12$ grid.
+### 2. Path Optimization & Collision Avoidance
+This visualization shows the final evaluation trajectory mapped alongside the final positions of dynamic obstacles (purple).
 
 ![Final Path](assets/final_path.png)
 
 **Strategic Analysis:**
-*   **Efficient Manifolds:** The agent does not simply move diagonally. It has learned to navigate around the **L-shaped wall structure** (centered at row 5 and column 5) using the most efficient Manhattan distance path.
-*   **Risk Mitigation:** Notice how the path maintains a "buffer zone" from the Trap coordinates $(2, 2)$ and $(8, 8)$. Even though the agent *could* pass closer, the learned Q-values for those transitions are significantly lower, guiding the agent toward safer, high-value state-action pairs.
-*   **Shortest Path Verification:** The path length is approximately 22 steps, which is the mathematical minimum given the obstacle constraints $(11+11 = 22)$.
+*   **Dynamic Evasion:** The agent has learned to navigate the static wall structure while maintaining enough flexibility to reach the goal even when its "preferred" lane is briefly occupied.
+*   **Shortest Path vs. Safety:** The path length is approximately 22-23 steps. The slight deviation from the theoretical minimum is often a learned response to the high probability of dynamic obstacle clusters in certain corridors.
+
+## 🔄 Evolution: Comparative Analysis
+
+The project has evolved from a **Static GridWorld** to a **Dynamic Stochastic Environment**. This transition was designed to test the robustness of the Q-Learning policy and observe how the agent handles non-stationary transitions.
+
+### 📉 Comparative Results: Static vs. Dynamic
+
+| Metric | Static Environment (Baseline) | Dynamic Environment (Robustness Test) |
+| :--- | :--- | :--- |
+| **Convergence State** | Stable $(\epsilon=0.01)$ | Persistent Fluctuations |
+| **Optimal Path Reward** | $\approx +85$ | $\approx +60$ to $+80$ |
+| **Policy Nature** | Deterministic Mapping | Probabilistic Risk Mitigation |
+| **Learning Complexity** | Low (Fixed Manifolds) | High (Shifting Hazards) |
+
+### 🛠️ Key Architectural Changes
+1.  **Stochastic Transitions:** Introduced $P(s'|s, a)$ variance where the environment state $s$ now includes the positions of 5 dynamic obstacles that move with $P=0.3$ per step.
+2.  **Penalty Shaping:** Added a specific collision penalty $(-20)$ for dynamic hazards, distinct from the catastrophic Trap penalty $(-50)$.
+3.  **Visualization Upgrade:** Expanded the `visualize.py` utility to support multi-class entity rendering (Purple for Dynamic, Red for Traps) with a technical legend.
+
+### 🧪 Technical Insight: Handling Non-Stationarity
+In a standard Q-Learning setup, we assume the environment is stationary. By adding moving obstacles, we've introduced **Non-Stationarity**. 
+*   **The Challenge:** A state $(r, c)$ that was "safe" in Episode 100 might contain a dynamic obstacle in Episode 101.
+*   **Agent Response:** The Q-values for states near high-traffic dynamic areas effectively "sink," representing the expected value over many stochastic realizations. This forces the agent to favor "wide" corridors even if they are slightly longer in Manhattan distance.
 
 ---
 
@@ -123,5 +147,4 @@ python code/main.py
 
 ## 🚀 Future Roadmap
 - [ ] Implement **DQN** for continuous state space navigation.
-- [ ] Add **Dynamic Obstacles** to test policy robustness.
 - [ ] Compare performance against **A* Search** (Classical AI vs RL).

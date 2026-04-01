@@ -17,6 +17,11 @@ TRAPS = [
     (2, 2), (8, 8), (3, 9), (9, 3)
 ]
 
+# Dynamic Obstacles
+N_DYNAMIC_OBSTACLES = 5
+DYNAMIC_OBSTACLE_MOVE_CHANCE = 0.3 # 30% chance to move each step
+DYNAMIC_OBSTACLE_PENALTY = -20
+
 # Rewards
 GOAL_REWARD = 100
 TRAP_PENALTY = -50

@@ -64,19 +64,19 @@ def evaluate(agent, env):
         total_reward += reward
         steps += 1
         
-    return path, total_reward
+    return path, total_reward, env.dynamic_obstacles
 
 if __name__ == "__main__":
     agent, env, rewards = train()
     
     # Evaluate final agent
-    path, final_reward = evaluate(agent, env)
+    path, final_reward, dyn_obs = evaluate(agent, env)
     print(f"Final Path Length: {len(path)}")
     print(f"Final Reward: {final_reward}")
     
     # Save visualizations
     assets_dir = ensure_assets_dir()
     plot_rewards(rewards, save_path=os.path.join(assets_dir, 'training_rewards.png'))
-    plot_agent_path(path, save_path=os.path.join(assets_dir, 'final_path.png'))
+    plot_agent_path(path, dynamic_obstacles=dyn_obs, save_path=os.path.join(assets_dir, 'final_path.png'))
     
     print(f"Visualizations saved to {assets_dir}/")
