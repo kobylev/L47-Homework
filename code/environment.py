@@ -1,9 +1,7 @@
 import numpy as np
-import random
 from code.config import (
     GRID_SIZE, START_POS, GOAL_POS, OBSTACLES, TRAPS,
-    GOAL_REWARD, TRAP_PENALTY, STEP_PENALTY,
-    N_DYNAMIC_OBSTACLES, DYNAMIC_OBSTACLE_MOVE_CHANCE, DYNAMIC_OBSTACLE_PENALTY
+    GOAL_REWARD, TRAP_PENALTY, STEP_PENALTY
 )
 
 class GridWorld:
@@ -14,90 +12,57 @@ class GridWorld:
         self.obstacles = set(OBSTACLES)
         self.traps = set(TRAPS)
         self.agent_pos = START_POS
-        self.dynamic_obstacles = []
 
     def reset(self):
         self.agent_pos = self.start_pos
-        self._init_dynamic_obstacles()
         return self.agent_pos
 
-    def _init_dynamic_obstacles(self):
-        self.dynamic_obstacles = []
-        forbidden = self.obstacles.union(self.traps).union({self.start_pos, self.goal_pos})
-        
-        while len(self.dynamic_obstacles) < N_DYNAMIC_OBSTACLES:
-            pos = (random.randint(0, self.grid_size - 1), random.randint(0, self.grid_size - 1))
-            if pos not in forbidden and pos not in self.dynamic_obstacles:
-                self.dynamic_obstacles.append(pos)
-
-    def _move_dynamic_obstacles(self):
-        new_positions = []
-        forbidden = self.obstacles.union({self.goal_pos}) # Don't block the goal or move into walls
-        
-        for r, c in self.dynamic_obstacles:
-            if random.random() < DYNAMIC_OBSTACLE_MOVE_CHANCE:
-                # Try moving in a random direction
-                action = random.randint(0, 3)
-                nr, nc = r, c
-                if action == 0: nr = max(0, r - 1)
-                elif action == 1: nr = min(self.grid_size - 1, r + 1)
-                elif action == 2: nc = max(0, c - 1)
-                elif action == 3: nc = min(self.grid_size - 1, c + 1)
-                
-                if (nr, nc) not in forbidden:
-                    new_positions.append((nr, nc))
-                else:
-                    new_positions.append((r, c))
-            else:
-                new_positions.append((r, c))
-        self.dynamic_obstacles = new_positions
-
-    def step(self, action):
+    def get_transitions(self, state, action):
         """
-        Actions:
-        0: Up
-        1: Down
-        2: Left
-        3: Right
+        Returns a list of tuples: (probability, next_state, reward, is_terminal)
+        Actions: 0: Up, 1: Down, 2: Left, 3: Right
         """
-        # 1. Environment moves
-        self._move_dynamic_obstacles()
+        if state == self.goal_pos:
+            return [(1.0, state, 0, True)] # Already at goal
 
-        # 2. Agent moves
-        r, c = self.agent_pos
-        new_r, new_c = r, c
+        r, c = state
+        nr, nc = r, c
 
         if action == 0: # Up
-            new_r = max(0, r - 1)
+            nr = max(0, r - 1)
         elif action == 1: # Down
-            new_r = min(self.grid_size - 1, r + 1)
+            nr = min(self.grid_size - 1, r + 1)
         elif action == 2: # Left
-            new_c = max(0, c - 1)
+            nc = max(0, c - 1)
         elif action == 3: # Right
-            new_c = min(self.grid_size - 1, c + 1)
+            nc = min(self.grid_size - 1, c + 1)
 
         # Check for static obstacles
-        if (new_r, new_c) in self.obstacles:
-            new_r, new_c = r, c # Hit a wall, stay in place
+        if (nr, nc) in self.obstacles:
+            nr, nc = r, c # Hit a wall, stay in place
 
-        self.agent_pos = (new_r, new_c)
+        next_state = (nr, nc)
         
         # Calculate reward
-        done = False
         reward = STEP_PENALTY
+        is_terminal = False
 
-        if self.agent_pos == self.goal_pos:
+        if next_state == self.goal_pos:
             reward = GOAL_REWARD
-            done = True
-        elif self.agent_pos in self.traps:
+            is_terminal = True
+        elif next_state in self.traps:
             reward = TRAP_PENALTY
-        elif self.agent_pos in self.dynamic_obstacles:
-            reward = DYNAMIC_OBSTACLE_PENALTY
-            # Optionally don't end episode, but penalize collision
-            # self.agent_pos = (r, c) # Could also bounce back
+            # PRD doesn't say traps are terminal, so they just penalize.
 
-        return self.agent_pos, reward, done
+        return [(1.0, next_state, reward, is_terminal)]
 
-    def get_valid_actions(self, pos):
-        # All actions are valid; hitting walls just keeps agent in place
+    def get_all_states(self):
+        states = []
+        for r in range(self.grid_size):
+            for c in range(self.grid_size):
+                if (r, c) not in self.obstacles:
+                    states.append((r, c))
+        return states
+
+    def get_valid_actions(self, state):
         return [0, 1, 2, 3]

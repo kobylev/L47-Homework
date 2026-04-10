@@ -183,4 +183,9 @@ python code/main.py
 ---
 
 ## 🚀 Future Roadmap
-- [ ] Implement **DQN** for continuous state space navigation.
+- [x] **Dynamic Obstacles:** Implemented stochastically moving hazards to test policy robustness.
+- [x] **Classical AI Benchmarking:** Integrated A* Search comparison for performance and optimality evaluation.
+- [ ] **SARSA (On-Policy) Study:** Implement SARSA to contrast its "conservative" on-policy updates with Q-Learning's "aggressive" off-policy behavior.
+- [ ] **Deep Q-Networks (DQN):** Transition from tabular Q-Learning to neural function approximation for high-dimensional state spaces.
+- [ ] **Zero-Shot Generalization:** Randomize `START_POS` and `GOAL_POS` per episode to evaluate universal navigation capabilities.
+- [ ] **Priority Experience Replay (PER):** Optimize the training loop by prioritizing high TD-error transitions.
