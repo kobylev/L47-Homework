@@ -2,69 +2,96 @@ import numpy as np
 import os
 import sys
 import time
+import pygame
 
 # Ensure project root is in sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from code.config import START_POS, GOAL_POS
+from code.config import START_POS, GOAL_POS, FPS, CELL_SIZE, GRID_SIZE
 from code.environment import GridWorld
 from code.agent import ValueIterationSolver
-from code.visualize import plot_agent_path, plot_value_heatmap, ensure_assets_dir
+from code.gui import SmartCityGUI
 
-def run_value_iteration():
+def simulate_with_gui():
     env = GridWorld()
     solver = ValueIterationSolver(env)
+    gui = SmartCityGUI()
     
-    print("Starting Value Iteration...")
-    start_time = time.time()
-    iterations = solver.compute_v_iteration()
-    end_time = time.time()
+    # 1. Compute Initial Optimal Policy
+    print("Computing Initial Optimal Policy...")
+    solver.compute_v_iteration()
+    solver.extract_policy()
     
-    print(f"Converged in {iterations} iterations.")
-    print(f"Time taken: {(end_time - start_time) * 1000:.2f}ms")
+    total_episodes = 0
+    goal_count = 0
+    reward_history = []
     
-    # Extract Policy
-    policy = solver.extract_policy()
-    print("Optimal policy extracted.")
-    
-    return solver, env
+    running = True
+    while running:
+        state = env.reset()
+        episode_reward = 0
+        steps = 0
+        done = False
+        total_episodes += 1
+        status = "NAVIGATING"
+        
+        while not done and running:
+            # Handle Events (Mouse Clicks)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    x, y = event.pos
+                    if x < GRID_SIZE * CELL_SIZE:
+                        grid_c = x // CELL_SIZE
+                        grid_r = y // CELL_SIZE
+                        env.toggle_obstacle((grid_r, grid_c))
+                        solver.compute_v_iteration()
+                        solver.extract_policy()
+            
+            if not running: break
 
-def generate_optimal_path(solver, env):
-    """
-    Follow the optimal policy from start to goal.
-    """
-    state = START_POS
-    path = [state]
-    total_reward = 0
-    max_steps = 200
-    steps = 0
-    
-    while state != GOAL_POS and steps < max_steps:
-        r, c = state
-        action = solver.policy[r, c]
+            # Follow optimal policy
+            r, c = state
+            action = solver.policy[r, c]
+            transitions = env.get_transitions(state, action)
+            _, next_state, reward, done = transitions[0]
+            
+            state = next_state
+            env.agent_pos = state 
+            episode_reward += reward
+            steps += 1
+            
+            if done:
+                if state == GOAL_POS:
+                    status = "SUCCESS!"
+                    goal_count += 1
+                else:
+                    status = "FAILED"
+            
+            # Metrics for Dashboard
+            metrics = {
+                "Flight Status": status,
+                "Current Episode": total_episodes,
+                "Steps Taken": steps,
+                "Episode Reward": episode_reward,
+                "Success Rate": f"{(goal_count/total_episodes)*100:.1f}%",
+                "Total Success": goal_count
+            }
+            
+            gui.update(env, metrics, reward_history)
+            time.sleep(0.05) 
+
+        if not running: break
         
-        # In value iteration, transitions are known, but we take the first (most likely) one
-        transitions = env.get_transitions(state, action)
-        _, next_state, reward, _ = transitions[0]
-        
-        state = next_state
-        path.append(state)
-        total_reward += reward
-        steps += 1
-        
-    return path, total_reward
+        reward_history.append(episode_reward)
+        if len(reward_history) > 100:
+            reward_history.pop(0)
+
+        # Brief pause to show SUCCESS status before reset
+        time.sleep(0.8)
+
+    gui.close()
 
 if __name__ == "__main__":
-    solver, env = run_value_iteration()
-    
-    # Generate and display path
-    path, total_reward = generate_optimal_path(solver, env)
-    print(f"Path Length: {len(path)}")
-    print(f"Total Cumulative Reward: {total_reward}")
-    
-    # Save visualizations
-    assets_dir = ensure_assets_dir()
-    plot_value_heatmap(solver.v_table, save_path=os.path.join(assets_dir, 'value_heatmap.png'))
-    plot_agent_path(path, save_path=os.path.join(assets_dir, 'optimal_path.png'))
-    
-    print(f"Visualizations saved to {assets_dir}/")
+    simulate_with_gui()

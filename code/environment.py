@@ -1,7 +1,7 @@
 import numpy as np
 from code.config import (
-    GRID_SIZE, START_POS, GOAL_POS, OBSTACLES, TRAPS,
-    GOAL_REWARD, TRAP_PENALTY, STEP_PENALTY
+    GRID_SIZE, START_POS, GOAL_POS, OBSTACLES, TRAPS, WIND_ZONES,
+    GOAL_REWARD, TRAP_PENALTY, STEP_PENALTY, WIND_ZONE_PENALTY
 )
 
 class GridWorld:
@@ -11,6 +11,7 @@ class GridWorld:
         self.goal_pos = GOAL_POS
         self.obstacles = set(OBSTACLES)
         self.traps = set(TRAPS)
+        self.wind_zones = set(WIND_ZONES)
         self.agent_pos = START_POS
 
     def reset(self):
@@ -20,39 +21,34 @@ class GridWorld:
     def get_transitions(self, state, action):
         """
         Returns a list of tuples: (probability, next_state, reward, is_terminal)
-        Actions: 0: Up, 1: Down, 2: Left, 3: Right
         """
         if state == self.goal_pos:
-            return [(1.0, state, 0, True)] # Already at goal
+            return [(1.0, state, 0, True)]
 
         r, c = state
         nr, nc = r, c
 
-        if action == 0: # Up
-            nr = max(0, r - 1)
-        elif action == 1: # Down
-            nr = min(self.grid_size - 1, r + 1)
-        elif action == 2: # Left
-            nc = max(0, c - 1)
-        elif action == 3: # Right
-            nc = min(self.grid_size - 1, c + 1)
+        if action == 0: nr = max(0, r - 1)
+        elif action == 1: nr = min(self.grid_size - 1, r + 1)
+        elif action == 2: nc = max(0, c - 1)
+        elif action == 3: nc = min(self.grid_size - 1, c + 1)
 
-        # Check for static obstacles
         if (nr, nc) in self.obstacles:
-            nr, nc = r, c # Hit a wall, stay in place
+            nr, nc = r, c
 
         next_state = (nr, nc)
         
-        # Calculate reward
-        reward = STEP_PENALTY
+        # Reward Calculation based on PRD
+        reward = STEP_PENALTY # Empty cell: -1
         is_terminal = False
 
         if next_state == self.goal_pos:
-            reward = GOAL_REWARD
+            reward = GOAL_REWARD # Goal: +10
             is_terminal = True
         elif next_state in self.traps:
-            reward = TRAP_PENALTY
-            # PRD doesn't say traps are terminal, so they just penalize.
+            reward = TRAP_PENALTY # Trap: -5
+        elif next_state in self.wind_zones:
+            reward = WIND_ZONE_PENALTY # Wind Zone: -2
 
         return [(1.0, next_state, reward, is_terminal)]
 
@@ -63,6 +59,16 @@ class GridWorld:
                 if (r, c) not in self.obstacles:
                     states.append((r, c))
         return states
+
+    def toggle_obstacle(self, pos):
+        """Adds or removes an obstacle at the given position."""
+        if pos == self.start_pos or pos == self.goal_pos:
+            return # Don't block start or goal
+        
+        if pos in self.obstacles:
+            self.obstacles.remove(pos)
+        else:
+            self.obstacles.add(pos)
 
     def get_valid_actions(self, state):
         return [0, 1, 2, 3]
