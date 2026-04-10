@@ -67,11 +67,19 @@ The simulation supports **real-time interaction**. Users can click on any cell t
 ## 📊 Dashboard & Metrics
 
 The right-side dashboard provides real-time telemetry:
-*   **Episode:** Current delivery flight count.
-*   **Total Reward:** Cumulative energy/reward for the current flight.
-*   **Steps:** Number of cells traversed.
-*   **Goal Rate:** Rolling success percentage of successful deliveries.
-*   **Reward History Graph:** A dynamic line plot showing the performance over the last 100 flights.
+*   **Flight Status:** Current operational mode (NAVIGATING, SUCCESS, or FAILED).
+*   **Current Episode:** Count of completed delivery flights.
+*   **Steps Taken:** Distance traveled in the current flight.
+*   **Success Rate:** Percentage of flights that reached the goal successfully.
+*   **Reward History Graph:** A dynamic line plot showing performance over the last 100 flights.
+
+### 📈 Reward History Analysis
+The "Reward History" graph (visible in the dashboard below) tracks the efficiency of the drone over time. 
+
+![Smart City Simulation Dashboard](assets/simulation_screenshot.png)
+
+**Technical Insight:** 
+In this Value Iteration model, the "Reward History" remains stable as the policy is pre-computed to be optimal. Fluctuations in the graph typically occur when the user **interactively toggles obstacles** during a flight, forcing the drone to reroute and potentially take a longer or more penalized path.
 
 ---
 

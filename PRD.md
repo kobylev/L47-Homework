@@ -1,38 +1,38 @@
-# Product Requirements Document (PRD): Drone Navigation via Value Iteration
+# Product Requirements Document (PRD): Smart City Drone Delivery
 
 ## 1. Project Overview
-The goal of this project is to implement an autonomous drone navigation system that computes an optimal path across a 2D grid. The system uses the **Bellman Equation** and the **Value Iteration** algorithm to solve the Markov Decision Process (MDP) for a static environment with known transition probabilities and rewards.
+The goal of this project is to implement an autonomous drone navigation system that computes an optimal path across a 12x12 "Smart City" grid. The system uses the **Bellman Equation** and the **Value Iteration** algorithm to solve the Markov Decision Process (MDP) for an environment with known transition probabilities and rewards, featuring a real-time interactive GUI.
 
-## 2. Environment Specifications (Static Canvas)
+## 2. Environment Specifications (Smart City Canvas)
 *   **Grid Structure:** A fixed 12x12 grid.
 *   **Starting Point:** Fixed at coordinate `(0, 0)`.
 *   **Goal Position:** Fixed at coordinate `(11, 11)`.
-*   **Static Obstacles (Walls):** Fixed coordinates that are impassable. If the drone attempts to move into an obstacle, it remains in its current cell.
-*   **Traps & Penalties:** Specific fixed cells that incur a negative reward (penalty) to discourage entry.
-*   **Transition Model:** Known transition probabilities for each action (e.g., deterministic movement where an action leads to the intended state with 100% probability, or a defined noise factor).
+*   **Cell Types & Physics:**v
+    *   **Empty Cell:** Standard navigable space. **Reward: -1** (Step penalty).
+    *   **Building (Obstacle):** Impassable wall. The drone remains in its current cell if it attempts to enter.
+    *   **Trap:** Dangerous area. **Reward: -5**.
+    *   **Wind Zone:** Areas of turbulence. **Reward: -2**.
+    *   **Goal:** The delivery destination. **Reward: +10**.
+*   **Interactive Toggling:** Users can click on grid cells during simulation to add or remove buildings (obstacles). The system must re-calculate the optimal policy immediately.
 
 ## 3. Functional Requirements
-*   **Reward Function:**
-    *   **Goal:** +100 reward upon reaching `(11, 11)`.
-    *   **Trap:** -50 penalty for entering a trap cell.
-    *   **Step Penalty:** -1 penalty for every movement to incentivize path efficiency.
 *   **Algorithm (Value Iteration):**
     *   Initialize a Value Table $V(s)$ for all states.
     *   Iteratively update $V(s)$ using the Bellman Optimality Equation:
         $V(s) \leftarrow \max_a \sum_{s'} P(s'|s,a) [R(s,a,s') + \gamma V(s')]$
-    *   Continue iteration until the maximum change in the value function falls below a convergence threshold $\theta$.
-*   **Policy Extraction:** 
-    *   Once $V(s)$ converges, derive the optimal policy $\pi^*(s)$ by selecting the action that maximizes the expected value of the next state.
-*   **Navigation:**
-    *   Execute the derived policy from the start position to the goal.
+    *   Continue iteration until convergence ($\Delta V < 10^{-6}$).
+*   **GUI & Dashboard:**
+    *   **Grid View:** Visual representation of the city with color-coded cells (Blue for Wind, Red for Traps, Grey for Buildings).
+    *   **Metrics Panel:** Real-time display of Flight Status, Current Episode, Steps Taken, Episode Reward, Success Rate, and Total Success.
+    *   **Live Analytics:** A dynamic line graph showing "Reward History" for the last 100 episodes.
 
 ## 4. Technical Constraints
-*   **Language:** Python 3.x.
-*   **Dependencies:** NumPy for matrix operations, Matplotlib for path and reward visualization.
-*   **Performance:** The algorithm must converge in sub-second time for the 12x12 grid.
+*   **Language:** Python 3.10+.
+*   **GUI Framework:** Pygame.
+*   **Performance:** Sub-second convergence for value iteration, 60 FPS GUI refresh.
 
 ## 5. Success Criteria
-1.  The Value Iteration algorithm correctly converges to a stable value function.
-2.  The extracted policy generates a path that avoids all static obstacles.
-3.  The path taken is mathematically optimal (shortest path while avoiding penalties).
-4.  Visualization confirms the drone's trajectory from start to goal.
+1.  The drone dynamically reroutes when obstacles are toggled by the user.
+2.  The "Reward History" graph updates in real-time as episodes complete.
+3.  The dashboard accurately reflects the agent's telemetry and success metrics.
+4.  The value iteration algorithm correctly accounts for wind zones and traps.
