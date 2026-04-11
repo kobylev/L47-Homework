@@ -1,119 +1,74 @@
-# Smart City Drone Delivery: A Value Iteration Study
+# Smart City Drone Delivery: Reinforcement Learning vs. Model-Based Planning
 
 ## 🎯 Project Overview
-This project implements an autonomous **Drone Delivery System** using the **Bellman Equation** and **Value Iteration**. Set in a 12x12 "Smart City" grid, the drone must navigate from a starting warehouse to a delivery goal while optimizing for energy efficiency and avoiding hazards like buildings, wind zones, and traps.
+This project implements an autonomous **Drone Delivery System** operating in a highly volatile 12x12 "Smart City" environment. It serves as a comprehensive study comparing two foundational AI paradigms:
+1.  **Q-Learning (Model-Free RL):** An agent that learns to navigate through trial and error, dynamically adapting its policy via the Bellman Update Equation.
+2.  **Value Iteration (Model-Based Planning):** A "Bellman Agent" that mathematically computes the absolute optimal path offline, assuming perfect knowledge of the static environment.
 
-The core objective is to demonstrate **Model-Based Planning** in a Markov Decision Process (MDP), where the agent calculates an mathematically optimal policy offline before executing the flight.
-
-![Simulation Screenshot](assets/simulation_screenshot.png)
+![Drone Competition Dashboard](assets/competition_dashboard.png)
 
 ---
 
 ## 🏗️ Project Structure
 ```text
 C:\Ai_Expert\L47-Homework\
-├── PRD.md                  # Product Requirements Document
-├── README.md               # Project documentation and analysis
-├── requirements.txt        # Python dependencies (numpy, matplotlib, pygame)
-├── assets\                 # Visual performance analysis & simulation results
-│   ├── simulation_screenshot.png # High-fidelity GUI with Dashboard
-│   ├── value_heatmap.png   # Heatmap of the converged Value Function
-│   └── optimal_path.png    # The static optimal trajectory
-└── code\                   # Source implementation
-    ├── agent.py            # Value Iteration Solver (Bellman Optimality)
-    ├── config.py           # City parameters, rewards, & GUI settings
-    ├── environment.py      # MDP Model (Transitions & Reward Function)
-    ├── gui.py              # Pygame-based Smart City Interface
-    └── main.py             # Simulation orchestrator & interactive loop
+├── README.md                 # Comprehensive project documentation
+├── requirements.txt          # Python dependencies (numpy, matplotlib, pygame, pandas)
+├── assets\                   # Visual analytics, CSV logs, and dashboard captures
+│   ├── competition_metrics.csv       # Raw simulation data for every episode
+│   ├── competition_reward_graph.png  # Dual-line plot of Q-Learning vs Bellman
+│   └── competition_dashboard.png     # High-resolution capture of the GUI
+└── code\                     # Source implementation
+    ├── agent.py              # QLearningAgent and ValueIterationSolver
+    ├── competition.py        # The Head-to-Head synchronization orchestrator
+    ├── config.py             # Hyperparameters, penalties, and GUI scaling
+    ├── environment.py        # Dual-agent MDP environment with dynamic rendering
+    └── gui.py                # Pygame-based Smart City Interactive Dashboard
 ```
 
 ---
 
-## 🧠 The Core Idea: Value Iteration & Bellman Optimality
+## 🌍 The Dynamic Smart City Canvas
 
-Unlike model-free reinforcement learning (like Q-Learning), **Value Iteration** assumes the agent has a perfect "map" of the environment's physics (the transition and reward models).
-
-### 📐 Mathematical Foundation
-
-The solver iteratively updates the value of every state $V(s)$ until it converges to the optimal values $V^*(s)$:
-
-$$V_{k+1}(s) \leftarrow \max_{a} \sum_{s'} P(s'|s,a) \left[ R(s,a,s') + \gamma V_k(s') \right]$$
-
-Where:
-*   **$V(s)$:** The expected long-term reward from state $s$.
-*   **$\gamma$ (Discount Factor):** Set to `0.99` for long-range planning.
-*   **$P(s'|s,a)$:** Transition probability (1.0 for deterministic city movement).
-*   **$R(s,a,s')$:** The reward received for transitioning from $s$ to $s'$ via action $a$.
-
-Once $V$ converges (max change $< 10^{-6}$), the **Optimal Policy** $\pi^*$ is extracted:
-$$\pi^*(s) = \arg\max_{a} \sum_{s'} P(s'|s,a) \left[ R(s,a,s') + \gamma V^*(s') \right]$$
+The environment is a strictly non-stationary Markov Decision Process (MDP).
+*   **Static Infrastructure:** Buildings (Walls), Traps (-50 penalty), and Wind Zones (-5 penalty).
+*   **Dynamic Volatility:** At *every single time step*, 8 dynamic obstacles (-20 penalty) and 3 dynamic bonuses (+15 reward) randomly change coordinates across the entire grid.
+*   **Interactive Toggling:** Users can click on grid cells during flight to dynamically construct new walls, traps, or wind zones, forcing the agents to adapt in real-time.
 
 ---
 
-## 🌍 Smart City Dynamics
+## ⚔️ The Drone Competition: Model-Free vs. Model-Based
 
-The environment is a multi-zone grid with distinct physical properties:
-*   **Buildings (Impassable):** The drone cannot fly through solid structures.
-*   **Wind Zones (Turbulence):** High-energy zones that incur a **-2 penalty**.
-*   **Trap Zones (Danger):** Dangerous areas to be avoided at all costs (**-5 penalty**).
-*   **Empty Sky:** Standard flight path (**-1 step penalty**).
-*   **Delivery Goal:** Successful delivery completion (**+10 reward**).
+The core feature of this project is the **Drone Competition Module** (`competition.py`). It forces the Q-Learning Agent (Blue) and the Bellman Agent (Purple) to navigate the *exact same dynamic canvas* simultaneously. 
 
-### 🖱️ Interactive Environment
-The simulation supports **real-time interaction**. Users can click on any cell to add or remove buildings. The solver immediately re-calculates the optimal policy, and the drone dynamically reroutes its path to account for the new urban landscape.
+### Competition Mechanics
+*   **Synchronized State:** The dynamic obstacles and bonuses are regenerated exactly **once per turn**. Both agents perceive the identical grid snapshot before making their move.
+*   **Evaluation Metrics:** The dashboard tracks Total Reward, Step Efficiency, and Goal Completion Rate.
+*   **Automated Logging:** The module automatically exports all telemetry to `competition_metrics.csv` and generates a comparative visual graph upon completion.
 
----
+### 📈 Analytical Results: Who Wins in Chaos?
 
-## 📊 Dashboard & Metrics
+![Competition Reward History](assets/competition_reward_graph.png)
 
-The right-side dashboard provides real-time telemetry:
-*   **Flight Status:** Current operational mode (NAVIGATING, SUCCESS, or FAILED).
-*   **Current Episode:** Count of completed delivery flights.
-*   **Steps Taken:** Distance traveled in the current flight.
-*   **Success Rate:** Percentage of flights that reached the goal successfully.
-*   **Reward History Graph:** A dynamic line plot showing performance over the last 100 flights.
+**1. The Bellman Agent (Purple - Value Iteration)**
+*   **Philosophy:** Computes the mathematical optimum for the static grid using a one-step look-ahead.
+*   **Result in Dynamics:** While highly efficient in static scenarios, the Bellman agent is "blind" to the stochastic nature of the dynamic obstacles. It strictly follows the shortest path, leading to frequent, unavoidable collisions with dynamic hazards that spawn directly on its predetermined route.
 
-### 📈 Reward History Analysis
-The "Reward History" graph (visible in the dashboard below) tracks the efficiency of the drone over time. 
-
-![Smart City Simulation Dashboard](assets/simulation_screenshot.png)
-
-**Technical Insight:** 
-In this Value Iteration model, the "Reward History" remains stable as the policy is pre-computed to be optimal. Fluctuations in the graph typically occur when the user **interactively toggles obstacles** during a flight, forcing the drone to reroute and potentially take a longer or more penalized path.
+**2. The Q-Learning Agent (Blue - Reinforcement Learning)**
+*   **Philosophy:** Learns the statistical probability of danger through exploration.
+*   **Result in Dynamics:** The Q-Agent naturally develops a "Risk Mitigation" policy. Instead of taking the absolute shortest path, it learns to avoid the center of the map or specific corridors if they statistically harbor high volumes of dynamic obstacles. While it may take more steps on average, its overall cumulative reward is often higher and more stable in extreme volatility.
 
 ---
 
-## 🔬 Technical Comparison: Classical AI (A*) vs. Value Iteration (MDP)
-
-| Feature | A* Search | Value Iteration (Our Method) |
-| :--- | :--- | :--- |
-| **Logic** | Heuristic-driven search | Bellman Dynamic Programming |
-| **Optimality** | Shortest path (Geometric) | Maximum Expected Value (Probabilistic) |
-| **Wind/Traps** | Hard to weight properly | Naturally handles varying penalties |
-| **Dynamic Changes** | Requires full re-search | Incremental Value Updates |
-| **Global Knowledge** | Only calculates path to one goal | Calculates optimal move for *every* cell |
-
----
-
-## 🛠️ Setup & Usage
+## 🛠️ Setup & Execution
 
 ### Prerequisites
 *   Python 3.10+
 *   `pip install -r requirements.txt`
-*   `pip install pygame`
+*   `pip install pygame pandas matplotlib`
 
-### Execution
-To launch the interactive Smart City simulation:
+### Launch the Competition
+Watch the agents battle in real-time, generate the automated logs, and export the visual graphs:
 ```bash
-python -m code.main
+python -m code.competition
 ```
-
----
-
-## 🚀 Future Roadmap
-- [x] **Value Iteration Solver:** Implemented offline planning via the Bellman Equation.
-- [x] **Smart City GUI:** Developed a high-fidelity Pygame interface with a dashboard.
-- [x] **Interactive Obstacles:** Enabled real-time map editing and dynamic rerouting.
-- [ ] **Stochastic Wind:** Introduce a probability factor where wind might blow the drone off course.
-- [ ] **Multi-Agent Delivery:** Coordinate multiple drones to avoid mid-air collisions.
-- [ ] **Continuous State Space:** Transition from grid-based to vector-based navigation using Deep Reinforcement Learning.
