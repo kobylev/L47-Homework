@@ -1,9 +1,8 @@
 import numpy as np
 import random
 from code.config import (
-    GRID_SIZE, START_POS, GOAL_POS, STEP_PENALTY,
-    GOAL_REWARD_RANGE, TRAP_PENALTY_RANGE, WIND_PENALTY_RANGE,
-    WALL_COUNT_RANGE, TRAP_COUNT_RANGE, WIND_COUNT_RANGE
+    GRID_SIZE, START_POS, GOAL_POS, STEP_PENALTY, GOAL_REWARD,
+    CELL_TYPES, WALL_PROBABILITY
 )
 
 class GridWorld:
@@ -12,70 +11,55 @@ class GridWorld:
         self.start_pos = START_POS
         self.goal_pos = GOAL_POS
         
-        # Session-specific layout
         self.static_walls = set()
-        self.static_traps = set()
-        self.static_wind_zones = set()
+        self.cell_types = {} # (r, c) -> type_name
         
-        # Session-specific rewards
-        self.current_goal_reward = 100
-        self.current_trap_penalty = -50
-        self.current_wind_penalty = -5
-        
-        # Agent positions
         self.q_pos = START_POS
         self.vi_pos = START_POS
         self.agent_pos = START_POS
         
-        # Compatibility placeholders
+        # Compatibility
         self.dynamic_obstacles = set()
         self.dynamic_bonuses = set()
-
-    def randomize_layout(self, seed=None):
-        """Force-regenerates the entire city structure and physics."""
-        if seed is not None:
-            random.seed(seed)
-        # 1. Reset all structures
-        self.static_walls = set()
         self.static_traps = set()
         self.static_wind_zones = set()
+
+    def randomize_layout(self):
+        """Generates a new probabilistic grid configuration every step."""
+        self.static_walls = set()
+        self.cell_types = {}
         
-        # 2. Randomize rewards for this specific session
-        self.current_goal_reward = random.randint(*GOAL_REWARD_RANGE)
-        self.current_trap_penalty = random.randint(*TRAP_PENALTY_RANGE)
-        self.current_wind_penalty = random.randint(*WIND_PENALTY_RANGE)
+        # Define types and their relative probabilities
+        types = list(CELL_TYPES.keys())
+        probs = [CELL_TYPES[t][1] for t in types]
         
-        # 3. Randomize Coordinates
-        all_coords = [(r, c) for r in range(self.grid_size) for c in range(self.grid_size)]
-        forbidden = {self.start_pos, self.goal_pos, self.q_pos, self.vi_pos, self.agent_pos}
-        available = [c for c in all_coords if c not in forbidden]
-        
-        # Re-shuffle to ensure true randomness per call
-        random.shuffle(available)
-        
-        # Sample Buildings
-        n_walls = random.randint(*WALL_COUNT_RANGE)
-        self.static_walls = set(available[:n_walls])
-        available = available[n_walls:]
-        
-        # Sample Traps
-        n_traps = random.randint(*TRAP_COUNT_RANGE)
-        self.static_traps = set(available[:n_traps])
-        available = available[n_traps:]
-        
-        # Sample Wind Zones
-        n_wind = random.randint(*WIND_COUNT_RANGE)
-        self.static_wind_zones = set(available[:n_wind])
+        for r in range(self.grid_size):
+            for c in range(self.grid_size):
+                pos = (r, c)
+                if pos == self.start_pos or pos == self.goal_pos:
+                    self.cell_types[pos] = "EMPTY"
+                    continue
+                
+                # Check for active agents (SAFE ZONE)
+                if pos in {self.q_pos, self.vi_pos, self.agent_pos}:
+                    self.cell_types[pos] = "EMPTY"
+                    continue
+                
+                # Roll for WALL first
+                if random.random() < WALL_PROBABILITY:
+                    self.static_walls.add(pos)
+                    self.cell_types[pos] = "WALL"
+                else:
+                    # Roll for probabilistic cell type
+                    self.cell_types[pos] = random.choices(types, weights=probs)[0]
 
     def reset_competition(self):
-        """Resets agent positions AND triggers a fresh map randomization."""
         self.q_pos = self.start_pos
         self.vi_pos = self.start_pos
         self.randomize_layout() 
         return self.q_pos, self.vi_pos
 
     def reset(self):
-        """Standard reset for training."""
         self.agent_pos = self.start_pos
         self.randomize_layout()
         return self.agent_pos
@@ -93,20 +77,20 @@ class GridWorld:
         return (nr, nc)
 
     def step_dual(self, action_q, action_vi):
-        """Intra-episode step: Both agents move, THEN environment re-rolls."""
         self.q_pos = self._move_agent(self.q_pos, action_q)
         self.vi_pos = self._move_agent(self.vi_pos, action_vi)
-        self.randomize_layout()
+        self.randomize_layout() # Board re-rolls AFTER moves
         return self._get_result(self.q_pos), self._get_result(self.vi_pos)
 
     def _get_result(self, pos):
-        reward = STEP_PENALTY
         done = False
         if pos == self.goal_pos:
-            reward = self.current_goal_reward
-            done = True
-        elif pos in self.static_traps: reward = self.current_trap_penalty
-        elif pos in self.static_wind_zones: reward = self.current_wind_penalty
+            return pos, GOAL_REWARD, True
+        
+        type_name = self.cell_types.get(pos, "EMPTY")
+        cell_reward = CELL_TYPES.get(type_name, (0, 0))[0]
+        
+        reward = STEP_PENALTY + cell_reward
         return pos, reward, done
 
     def step(self, action):
@@ -129,11 +113,12 @@ class GridWorld:
         if (nr, nc) in self.static_walls: nr, nc = r, c
         
         next_state = (nr, nc)
-        reward = STEP_PENALTY
-        is_terminal = False
-        if next_state == self.goal_pos:
-            reward = self.current_goal_reward
-            is_terminal = True
-        elif next_state in self.static_traps: reward = self.current_trap_penalty
-        elif next_state in self.static_wind_zones: reward = self.current_wind_penalty
+        is_terminal = (next_state == self.goal_pos)
+        
+        # Calculate Reward based on current grid state
+        # (Since Bellman re-calculates every step, we use the visible current grid)
+        type_name = self.cell_types.get(next_state, "EMPTY")
+        cell_reward = CELL_TYPES.get(type_name, (0, 0))[0] if not is_terminal else GOAL_REWARD
+        
+        reward = STEP_PENALTY + cell_reward if not is_terminal else GOAL_REWARD
         return [(1.0, next_state, reward, is_terminal)]
