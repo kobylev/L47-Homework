@@ -65,7 +65,7 @@ def train_q_agent_headless(env, agent):
 
     print("\n[✔] Q-Agent Training Complete.\n" + "="*50)
 
-def run_competition():
+def run_competition(headless_mode=False):
     os.makedirs(ASSETS_DIR, exist_ok=True)
     env = GridWorld()
     q_agent = QLearningAgent()
@@ -73,9 +73,15 @@ def run_competition():
     # --- 1. HEADLESS TRAINING ---
     train_q_agent_headless(env, q_agent)
     
-    # --- 2. GUI COMPETITION ---
-    print("PHASE 2: GUI COMPETITION (50 Episodes)")
-    gui = SmartCityGUI()
+    # --- 2. GUI/HEADLESS COMPETITION ---
+    print(f"PHASE 2: COMPETITION ({'HEADLESS' if headless_mode else 'GUI'} MODE)")
+    
+    gui = None
+    if not headless_mode:
+        import pygame
+        pygame.init() # Initialize ONLY if needed
+        gui = SmartCityGUI()
+    
     history_q, history_vi = [], []
     stats_q, stats_vi = {"goals": 0}, {"goals": 0}
     
@@ -93,16 +99,14 @@ def run_competition():
         steps_q, steps_vi = 0, 0
         
         while (not done_q or not done_vi) and running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT: running = False
+            if not headless_mode:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT: running = False
             
             # Action Selection
-            # Q-agent is model-free, acts based on state
             act_q = q_agent.choose_action(env.q_pos, epsilon=0.05) if not done_q else -1
             
-            # Bellman must recalculate policy per-step since the environment is fully dynamic
-            # But doing full value iteration per step is heavy, so we rely on its static evaluation of current visible obstacles.
-            # In our setup, get_transitions uses static_walls, so we just run VI for the current step.
+            # Bellman dynamic step recalculation
             if not done_vi:
                 vi_solver = ValueIterationSolver(env)
                 vi_solver.compute_v_iteration()
@@ -128,21 +132,32 @@ def run_competition():
                 elif steps_vi >= MAX_STEPS_PER_EPISODE: done_vi = True
             
             # Live GUI Update
-            q_metrics = {"Total Reward": f"{reward_q:.1f}", "Steps": steps_q, 
-                         "Goal Rate": f"{(stats_q['goals']/ep)*100:.1f}%", "Epsilon": f"{q_agent.epsilon:.2f}"}
-            vi_metrics = {"Total Reward": f"{reward_vi:.1f}", "Steps": steps_vi, 
-                          "Goal Rate": f"{(stats_vi['goals']/ep)*100:.1f}%", "Epsilon": "0.00"}
-            
-            gui.update_competition(env, ep, q_metrics, vi_metrics, history_q, history_vi)
+            if not headless_mode:
+                q_metrics = {"Total Reward": f"{reward_q:.1f}", "Steps": steps_q, 
+                             "Goal Rate": f"{(stats_q['goals']/ep)*100:.1f}%", "Epsilon": f"{q_agent.epsilon:.2f}"}
+                vi_metrics = {"Total Reward": f"{reward_vi:.1f}", "Steps": steps_vi, 
+                              "Goal Rate": f"{(stats_vi['goals']/ep)*100:.1f}%", "Epsilon": "0.00"}
+                gui.update_competition(env, ep, q_metrics, vi_metrics, history_q, history_vi)
             
         history_q.append(reward_q)
         history_vi.append(reward_vi)
         save_competition_csv([ep, reward_q, steps_q, round((stats_q['goals']/ep)*100, 1), 
                               reward_vi, steps_vi, round((stats_vi['goals']/ep)*100, 1)])
+        
+        if headless_mode:
+            print(f"Episode {ep:2d} | Q: {reward_q:6.1f} | B: {reward_vi:6.1f} | Goal Rate: {(stats_q['goals']/ep)*100:.1f}%")
 
-    pygame.image.save(gui.screen, COMPETITION_SCREENSHOT_PATH)
+    if not headless_mode:
+        import pygame
+        pygame.image.save(gui.screen, COMPETITION_SCREENSHOT_PATH)
+        gui.close()
+    
     export_competition_graph(history_q, history_vi)
-    gui.close()
 
 if __name__ == "__main__":
-    run_competition()
+    import argparse
+    parser = argparse.ArgumentParser(description="Drone Competition CLI")
+    parser.add_argument("--headless", action="store_true", help="Run without GUI")
+    args = parser.parse_args()
+    
+    run_competition(headless_mode=args.headless)
