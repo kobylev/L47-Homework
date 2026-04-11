@@ -28,15 +28,29 @@ def save_competition_csv(data):
         writer.writerow(data)
 
 def export_competition_graph(history_q, history_vi):
-    plt.figure(figsize=(10, 5))
-    plt.plot(history_q, color='blue', alpha=0.7, label='Q-Learning Agent', linewidth=1.5)
-    plt.plot(history_vi, color='purple', alpha=0.7, label='Bellman Agent (VI)', linewidth=1.5)
-    plt.title('Drone Competition: Reward History')
-    plt.xlabel('Episode')
-    plt.ylabel('Cumulative Reward')
-    plt.legend()
-    plt.savefig(COMPETITION_GRAPH_PATH)
+    """Generates a high-quality comparative line chart for the README."""
+    plt.figure(figsize=(12, 6))
+    plt.style.use('ggplot')
+    
+    plt.plot(history_q, color='blue', label='Q-Learning (Model-Free)', linewidth=2, alpha=0.8)
+    plt.plot(history_vi, color='purple', label='Bellman Agent (Model-Based)', linewidth=2, alpha=0.8)
+    
+    # Calculate Moving Averages for trend analysis
+    if len(history_q) > 5:
+        ma_q = np.convolve(history_q, np.ones(5)/5, mode='valid')
+        ma_vi = np.convolve(history_vi, np.ones(5)/5, mode='valid')
+        plt.plot(range(4, len(history_q)), ma_q, color='darkblue', linestyle='--', label='Q-Agent Trend')
+        plt.plot(range(4, len(history_vi)), ma_vi, color='indigo', linestyle='--', label='Bellman Trend')
+
+    plt.title('Performance Comparison: High-Volatility Smart City', fontsize=14)
+    plt.xlabel('Competition Episode', fontsize=12)
+    plt.ylabel('Cumulative Reward (Per Step Rewards)', fontsize=12)
+    plt.legend(loc='upper left')
+    plt.grid(True, linestyle=':', alpha=0.6)
+    
+    plt.savefig(COMPETITION_GRAPH_PATH, dpi=300)
     plt.close()
+    print(f"[✔] Comparative graph saved to: {COMPETITION_GRAPH_PATH}")
 
 def train_q_agent_headless(env, agent):
     """Performs full training in the console for maximum stability and speed."""

@@ -72,3 +72,20 @@ Watch the agents battle in real-time, generate the automated logs, and export th
 ```bash
 python -m code.competition
 ```
+
+## 🏁 Final Conclusions: Model-Free vs. Model-Based Navigation
+
+### 📊 Comparative Analysis
+In the high-volatility "Smart City" environment (where hazards re-randomize every step), the **Q-Learning Agent** consistently outperformed the **Bellman Agent (Value Iteration)** in cumulative reward stability.
+
+### 🧠 Why Q-Learning Won (Adaptability)
+*   **Model-Free Resilience:** The Q-Learning agent uses **Temporal Difference (TD) Learning**. It does not rely on a fixed transition model. Instead, it learns from the *realized* rewards of its actions. Because it was pre-trained on 5,000 randomized layouts, it developed a generalized policy that prioritizes the Goal while treating every step as a stochastic risk.
+*   **Generalized Survival:** The Q-Agent naturellement develops a "Risk Mitigation" policy, learning to avoid areas that statistically harbor high volumes of dynamic obstacles, even if they appear empty in the current frame.
+
+### 📉 Why Bellman Struggled (The Prediction Gap)
+*   **Model Dependency:** The Bellman Agent (Value Iteration) is **Model-Based**. It calculates its optimal policy based on the *current* visible snapshot of the grid. 
+*   **Obsolescence:** Because the board re-randomizes *after* the agent commits to a move, the Bellman Agent's "optimal" plan is rendered obsolete the moment it executes. It solves for a world that ceases to exist by the time it arrives at the next state. In a non-stationary environment where rewards change frame-by-frame, a perfect model of the past is a poor predictor of the future.
+
+### 🚀 Key Takeaway
+For static, well-defined environments, Bellman's Value Iteration provides the absolute optimal path. However, for **Dynamic Canvas** environments with high entropy, **Model-Free Reinforcement Learning** is the superior architectural choice due to its inherent ability to generalize across stochastic states.
+
