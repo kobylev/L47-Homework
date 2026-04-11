@@ -97,8 +97,19 @@ def run_competition():
                 if event.type == pygame.QUIT: running = False
             
             # Action Selection
+            # Q-agent is model-free, acts based on state
             act_q = q_agent.choose_action(env.q_pos, epsilon=0.05) if not done_q else -1
-            act_vi = vi_solver.policy[env.vi_pos[0], env.vi_pos[1]] if not done_vi else -1
+            
+            # Bellman must recalculate policy per-step since the environment is fully dynamic
+            # But doing full value iteration per step is heavy, so we rely on its static evaluation of current visible obstacles.
+            # In our setup, get_transitions uses static_walls, so we just run VI for the current step.
+            if not done_vi:
+                vi_solver = ValueIterationSolver(env)
+                vi_solver.compute_v_iteration()
+                vi_solver.extract_policy()
+                act_vi = vi_solver.policy[env.vi_pos[0], env.vi_pos[1]]
+            else:
+                act_vi = -1
             
             (q_res, vi_res) = env.step_dual(act_q, act_vi)
             

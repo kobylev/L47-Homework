@@ -31,8 +31,10 @@ class GridWorld:
         self.dynamic_obstacles = set()
         self.dynamic_bonuses = set()
 
-    def randomize_layout(self):
+    def randomize_layout(self, seed=None):
         """Force-regenerates the entire city structure and physics."""
+        if seed is not None:
+            random.seed(seed)
         # 1. Reset all structures
         self.static_walls = set()
         self.static_traps = set()
@@ -45,7 +47,7 @@ class GridWorld:
         
         # 3. Randomize Coordinates
         all_coords = [(r, c) for r in range(self.grid_size) for c in range(self.grid_size)]
-        forbidden = {self.start_pos, self.goal_pos}
+        forbidden = {self.start_pos, self.goal_pos, self.q_pos, self.vi_pos, self.agent_pos}
         available = [c for c in all_coords if c not in forbidden]
         
         # Re-shuffle to ensure true randomness per call
@@ -91,9 +93,10 @@ class GridWorld:
         return (nr, nc)
 
     def step_dual(self, action_q, action_vi):
-        """Intra-episode step: Environment stays static."""
+        """Intra-episode step: Both agents move, THEN environment re-rolls."""
         self.q_pos = self._move_agent(self.q_pos, action_q)
         self.vi_pos = self._move_agent(self.vi_pos, action_vi)
+        self.randomize_layout()
         return self._get_result(self.q_pos), self._get_result(self.vi_pos)
 
     def _get_result(self, pos):
@@ -108,6 +111,7 @@ class GridWorld:
 
     def step(self, action):
         self.agent_pos = self._move_agent(self.agent_pos, action)
+        self.randomize_layout()
         next_pos, reward, done = self._get_result(self.agent_pos)
         self.agent_pos = next_pos
         return next_pos, reward, done
